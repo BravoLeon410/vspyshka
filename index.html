@@ -10,6 +10,15 @@
         :root { --bg: #000; --card: #121212; --accent: #ff8c00; --text: #fff; --gray: #777; --red: #ff4444; --green: #00ffcc; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background: var(--bg); color: var(--text); height: 100dvh; overflow: hidden; position: relative; }
+        
+        /* Запрещаем выделение текста везде, где есть долгий тап, чтобы не вылезало системное меню копирования */
+        .msg, .post-card, .comment-card, .chat-item { 
+            -webkit-user-select: none; /* Safari/iOS */
+            -moz-user-select: none;    /* Firefox */
+            -ms-user-select: none;     /* IE/Edge */
+            user-select: none;         /* Стандарт */
+        }
+
         .screen { position: fixed; inset: 0; background: var(--bg); display: none; flex-direction: column; z-index: 10; padding-bottom: 85px; }
         .screen.active { display: flex; }
         header { padding: 15px; background: var(--card); border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; height: 60px; }
@@ -25,7 +34,12 @@
         
         #chat-list, #feed-container, #comments-list { flex: 1; overflow-y: auto; padding-bottom: 20px; }
         .chat-item, .post-card, .comment-card { padding: 15px; border-bottom: 1px solid #151515; background: var(--card); margin: 8px 12px; border-radius: 16px; position: relative; }
-        .avatar { width: 42px; height: 42px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #000; font-weight: bold; font-size: 16px; }
+        
+        /* Стили для админского поста */
+        .post-card.admin-post { border: 1px solid var(--accent); box-shadow: 0 0 10px rgba(255, 140, 0, 0.2); }
+        .admin-badge { background: var(--accent); color: #000; font-size: 9px; padding: 2px 6px; border-radius: 10px; font-weight: bold; margin-left: 5px; text-transform: uppercase; vertical-align: middle; }
+
+        .avatar { width: 42px; height: 42px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #000; font-weight: bold; font-size: 16px; flex-shrink: 0; }
         
         #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #050505; }
         .msg { max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 15px; position: relative; display: flex; flex-direction: column; }
@@ -33,12 +47,17 @@
         .out { align-self: flex-end; background: var(--accent); color: #000; }
         .msg-time { font-size: 9px; align-self: flex-end; margin-top: 4px; opacity: 0.6; }
         
-        .input-bar { padding: 10px 15px; background: var(--card); display: flex; gap: 10px; border-top: 1px solid #222; position: relative; bottom: env(keyboard-inset-height, 0px); }
+        .input-bar { padding: 10px 15px; background: var(--card); display: flex; gap: 10px; border-top: 1px solid #222; }
         
         input[type="text"], input[type="email"], input[type="password"] { 
             width: 100%; padding: 12px 20px; border-radius: 25px; background:#1a1a1a; border:1px solid #333; color:#fff; outline: none; 
         }
         
+        .pass-container { position: relative; width: 100%; margin-top: 10px; }
+        .pass-container i { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--gray); cursor: pointer; }
+
+        .last-msg-preview { color: var(--gray); font-size: 13px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; }
         .modal-box { background: var(--card); width: 88%; padding: 25px; border-radius: 25px; text-align: center; }
         
@@ -58,7 +77,10 @@
         <div id="login-form" style="width:85%; text-align:center;">
             <h1 style="color:var(--accent); font-size:45px; margin-bottom:30px;">ВСПЫШКА</h1>
             <input type="email" id="log-email" placeholder="Email" autocomplete="off">
-            <input type="password" id="log-pass" placeholder="Пароль" style="margin-top:10px;">
+            <div class="pass-container">
+                <input type="password" id="log-pass" placeholder="Пароль">
+                <i class="fas fa-eye" onclick="app.togglePassVisibility('log-pass', this)"></i>
+            </div>
             <button class="btn" onclick="app.auth('login')" style="width:100%; margin-top:15px;">ВОЙТИ</button>
             <button onclick="app.toggleAuth(true)" style="background:none; border:none; color:var(--gray); margin-top:15px;">Нет аккаунта? Регистрация</button>
         </div>
@@ -67,7 +89,14 @@
             <input type="email" id="reg-email" placeholder="Email" autocomplete="off">
             <input type="text" id="reg-name" placeholder="Имя" autocomplete="off" style="margin-top:10px;">
             <input type="text" id="reg-nick" placeholder="Никнейм" autocomplete="off" style="margin-top:10px;">
-            <input type="password" id="reg-pass" placeholder="Пароль" style="margin-top:10px;">
+            <div class="pass-container">
+                <input type="password" id="reg-pass" placeholder="Пароль">
+                <i class="fas fa-eye" onclick="app.togglePassVisibility('reg-pass', this)"></i>
+            </div>
+            <div class="pass-container">
+                <input type="password" id="reg-pass-confirm" placeholder="Повторите пароль">
+                <i class="fas fa-eye" onclick="app.togglePassVisibility('reg-pass-confirm', this)"></i>
+            </div>
             <button class="btn" onclick="app.auth('reg')" style="width:100%; margin-top:15px;">РЕГИСТРАЦИЯ</button>
             <button onclick="app.toggleAuth(false)" style="background:none; border:none; color:var(--gray); margin-top:15px;">Уже есть аккаунт? Войти</button>
         </div>
@@ -76,7 +105,7 @@
     <div id="feed-screen" class="screen">
         <header><b style="color:var(--accent); font-size:22px;">ЛЕНТА</b></header>
         <div style="padding: 12px; display: flex; gap: 10px; background: var(--card); margin: 10px; border-radius: 16px;">
-            <input type="text" id="post-input" placeholder="Поделиться вспышкой..." autocomplete="off" autocorrect="off" spellcheck="false">
+            <input type="text" id="post-input" placeholder="Поделиться вспышкой..." autocomplete="off">
             <button class="btn" onclick="app.createPost()">ОК</button>
         </div>
         <div id="feed-container"></div>
@@ -91,25 +120,21 @@
     <div id="settings-screen" class="screen">
         <header><b style="color:var(--accent); font-size:22px;">ПРОФИЛЬ</b></header>
         <div style="background: var(--card); margin: 15px; padding: 20px; border-radius: 20px; border-left: 5px solid var(--accent);">
-            
             <div style="color: var(--accent); font-size: 11px; text-transform: uppercase; margin-bottom: 5px;">Имя</div>
             <div class="profile-field">
                 <span id="prof-name" style="font-size: 18px; font-weight: bold;">...</span>
                 <i class="fas fa-pen" style="color:var(--accent); cursor:pointer;" onclick="app.editProfileField('name')"></i>
             </div>
-            
             <div style="color: var(--accent); font-size: 11px; text-transform: uppercase; margin-bottom: 5px;">Никнейм</div>
             <div class="profile-field">
                 <span id="prof-nick" style="font-size: 16px; color:#aaa;">@...</span>
                 <i class="fas fa-pen" style="color:var(--accent); cursor:pointer;" onclick="app.editProfileField('nickname')"></i>
             </div>
-
             <div style="color: var(--accent); font-size: 11px; text-transform: uppercase; margin-bottom: 5px;">Электронная почта</div>
             <div class="profile-field">
                 <span id="prof-email" style="font-size: 15px; color:#aaa;">***********</span>
                 <i id="email-eye" class="fas fa-eye" style="color:var(--accent); cursor:pointer;" onclick="app.toggleEmailVisibility()"></i>
             </div>
-            
             <button class="btn" style="background:var(--red); color:white; width:100%; margin-top:20px; border-radius:12px;" onclick="app.logout()">ВЫЙТИ ИЗ АККАУНТА</button>
         </div>
     </div>
@@ -124,7 +149,7 @@
         </header>
         <div id="messages"></div>
         <div class="input-bar">
-            <input type="text" id="m-input" placeholder="Сообщение..." autocomplete="new-password" autocorrect="off" spellcheck="false">
+            <input type="text" id="m-input" placeholder="Сообщение..." autocomplete="off" enterkeyhint="send">
             <button class="btn" onclick="app.sendMsg()">ОК</button>
         </div>
     </div>
@@ -136,7 +161,7 @@
         </header>
         <div id="comments-list"></div>
         <div class="input-bar">
-            <input type="text" id="comment-input" placeholder="Написать комментарий..." autocomplete="new-password" autocorrect="off" spellcheck="false">
+            <input type="text" id="comment-input" placeholder="Написать комментарий..." autocomplete="off">
             <button class="btn" onclick="app.sendComment()">ОК</button>
         </div>
     </div>
@@ -173,7 +198,7 @@
         const app = {
             me: null, myId: null, rawEmail: '', isEmailVisible: false, currentOpponentId: null, activePostId: null,
             chats: JSON.parse(localStorage.getItem('f_chats') || "{}"),
-            dbId: '6a0adb260034b853e4b8',
+            dbId: 'vspyshka_db', 
             subs: [],
 
             formatTime(ts) {
@@ -183,6 +208,16 @@
             toggleAuth(isReg) {
                 document.getElementById('login-form').style.display = isReg ? 'none' : 'block';
                 document.getElementById('reg-form').style.display = isReg ? 'block' : 'none';
+            },
+            togglePassVisibility(id, icon) {
+                const input = document.getElementById(id);
+                if(input.type === "password") {
+                    input.type = "text";
+                    icon.className = "fas fa-eye-slash";
+                } else {
+                    input.type = "password";
+                    icon.className = "fas fa-eye";
+                }
             },
             tab(name) {
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -249,8 +284,11 @@
                 try {
                     if(type === 'reg') {
                         const email = document.getElementById('reg-email').value, pass = document.getElementById('reg-pass').value;
+                        const passConfirm = document.getElementById('reg-pass-confirm').value;
                         const name = document.getElementById('reg-name').value, nick = document.getElementById('reg-nick').value.toLowerCase().trim();
-                        if(!email || !pass || !name || !nick) return alert("Заполни все поля!");
+                        
+                        if(!email || !pass || !name || !nick || !passConfirm) return alert("Заполни все поля!");
+                        if(pass !== passConfirm) return alert("Пароли не совпадают!");
 
                         const check = await databases.listDocuments(this.dbId, 'users', [Appwrite.Query.equal('nickname', nick)]);
                         if(check.total > 0) return alert("Ник занят!");
@@ -273,6 +311,8 @@
                     this.me = await databases.getDocument(this.dbId, 'users', this.myId);
                     document.getElementById('auth-screen').style.display = 'none';
                     
+                    if (Notification.permission !== "granted") { Notification.requestPermission(); }
+                    
                     await databases.updateDocument(this.dbId, 'users', this.myId, { is_online: true, last_seen: Date.now() });
                     
                     window.addEventListener('beforeunload', () => {
@@ -289,24 +329,51 @@
             initRealtimeGlobal() {
                 client.subscribe(`databases.${this.dbId}.collections.messages.documents`, async res => {
                     const m = res.payload;
-                    if (m.receiver_id === this.myId && !this.chats[m.sender_id]) {
-                        const uDoc = await databases.getDocument(this.dbId, 'users', m.sender_id);
-                        this.chats[m.sender_id] = { name: uDoc.name, nick: uDoc.nickname };
+                    if (m.receiver_id === this.myId) {
+                        if (!this.chats[m.sender_id]) {
+                            const uDoc = await databases.getDocument(this.dbId, 'users', m.sender_id);
+                            this.chats[m.sender_id] = { name: uDoc.name, nick: uDoc.nickname, last_text: m.text };
+                        } else {
+                            this.chats[m.sender_id].last_text = m.text;
+                        }
                         this.save(); this.renderList();
+
+                        if(this.currentOpponentId !== m.sender_id) {
+                            new Notification(`ВСПЫШКА: ${this.chats[m.sender_id].name}`, { body: m.text });
+                        }
                     }
                 });
             },
 
-            renderList() {
+            async renderList() {
                 const l = document.getElementById('chat-list'); l.innerHTML = '';
-                if(Object.keys(this.chats).length === 0) { l.innerHTML = '<div style="text-align:center;color:var(--gray);margin-top:40px;">Нет чатов</div>'; }
+                if(Object.keys(this.chats).length === 0) { l.innerHTML = '<div style="text-align:center;color:var(--gray);margin-top:40px;">Нет чатов</div>'; return; }
+                
                 for(let id in this.chats) {
+                    if(!this.chats[id].last_text) {
+                        try {
+                            const lastMsgRes = await databases.listDocuments(this.dbId, 'messages', [
+                                Appwrite.Query.or([
+                                    Appwrite.Query.and([Appwrite.Query.equal('sender_id', this.myId), Appwrite.Query.equal('receiver_id', id)]),
+                                    Appwrite.Query.and([Appwrite.Query.equal('sender_id', id), Appwrite.Query.equal('receiver_id', this.myId)])
+                                ]),
+                                Appwrite.Query.orderDesc('timestamp'),
+                                Appwrite.Query.limit(1)
+                            ]);
+                            if(lastMsgRes.documents.length > 0) {
+                                this.chats[id].last_text = lastMsgRes.documents[0].text;
+                            }
+                        } catch(e){}
+                    }
+
                     const d = document.createElement('div'); d.className = 'chat-item';
+                    const preview = this.chats[id].last_text || 'Нет сообщений';
+
                     d.innerHTML = `<div style="display:flex; align-items:center; gap:15px;">
                         <div class="avatar">${this.chats[id].name[0].toUpperCase()}</div>
-                        <div style="flex:1;" onclick="app.openChat('${id}', '${this.chats[id].name}')">
-                            <div style="font-weight:bold;">${this.chats[id].name}</div>
-                            <div style="color:var(--gray); font-size:12px;">@${this.chats[id].nick}</div>
+                        <div style="flex:1; min-width:0;" onclick="app.openChat('${id}', '${this.chats[id].name}')">
+                            <div style="font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${this.chats[id].name}</div>
+                            <div class="last-msg-preview">${preview}</div>
                         </div>
                         <i class="fas fa-trash" style="color:var(--gray); padding:10px;" onclick="app.deleteChat('${id}')"></i>
                     </div>`;
@@ -381,6 +448,9 @@
                 await databases.createDocument(this.dbId, 'messages', 'unique()', {
                     sender_id: this.myId, receiver_id: this.currentOpponentId, text: t, timestamp: Date.now()
                 });
+                if(this.chats[this.currentOpponentId]) {
+                    this.chats[this.currentOpponentId].last_text = t; this.save();
+                }
                 i.value = '';
             },
 
@@ -395,45 +465,57 @@
             },
             async loadFeed() {
                 const container = document.getElementById('feed-container'); container.innerHTML = '';
-                const res = await databases.listDocuments(this.dbId, 'posts', [Appwrite.Query.orderDesc('timestamp')]);
-                res.documents.forEach(p => {
-                    const card = document.createElement('div'); card.className = 'post-card';
-                    const likesArr = p.likes || [];
-                    const isLikedByMe = likesArr.includes(this.myId);
-                    const likeColor = isLikedByMe ? 'var(--red)' : '#fff';
+                try {
+                    const res = await databases.listDocuments(this.dbId, 'posts', [Appwrite.Query.orderDesc('timestamp')]);
+                    res.documents.forEach(p => {
+                        const card = document.createElement('div');
+                        const likesArr = p.likes || [];
+                        const isLikedByMe = likesArr.includes(this.myId);
+                        const likeColor = isLikedByMe ? 'var(--red)' : '#fff';
+                        
+                        // Проверка на админа с твоим ником hyisa
+                        const isPostFromAdmin = p.author_nickname === 'hyisa';
+                        
+                        card.className = `post-card ${isPostFromAdmin ? 'admin-post' : ''}`;
 
-                    card.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                            <div><b>${p.author_name}</b> <span style="color:var(--gray); font-size:12px;">@${p.author_nickname}</span></div>
-                            <div style="color:var(--gray); font-size:11px;">${this.formatTime(p.timestamp)}</div>
-                        </div>
-                        <div style="font-size:15px; margin-bottom:12px; white-space:pre-wrap;">${p.text}</div>
-                        <div style="display:flex; gap:12px;">
-                            <button class="btn" style="background:#222; color:${likeColor}; font-size:12px; padding:6px 12px;" onclick="app.toggleLike('${p.$id}', ${JSON.stringify(likesArr)})">
-                                <i class="${isLikedByMe ? 'fas' : 'far'} fa-heart"></i> ${likesArr.length}
-                            </button>
-                            <button class="btn" style="background:#222; color:#fff; font-size:12px; padding:6px 12px;" onclick="app.openComments('${p.$id}')">
-                                <i class="fas fa-comments"></i> Комменты
-                            </button>
-                        </div>
-                    `;
-                    let timer;
-                    card.addEventListener('touchstart', e => { timer = setTimeout(() => this.showMenu(e, 'post', p), 600); });
-                    card.addEventListener('touchend', () => clearTimeout(timer));
-                    container.appendChild(card);
-                });
+                        card.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <div>
+                                    <b>${p.author_name}</b> 
+                                    <span style="color:var(--gray); font-size:12px;">@${p.author_nickname}</span>
+                                    ${isPostFromAdmin ? '<span class="admin-badge"><i class="fas fa-shield-alt"></i> Админ</span>' : ''}
+                                </div>
+                                <div style="color:var(--gray); font-size:11px;">${this.formatTime(p.timestamp)}</div>
+                            </div>
+                            <div style="font-size:15px; margin-bottom:12px; white-space:pre-wrap;">${p.text}</div>
+                            <div style="display:flex; gap:12px;">
+                                <button class="btn" style="background:#222; color:${likeColor}; font-size:12px; padding:6px 12px;" onclick="app.toggleLike('${p.$id}', ${JSON.stringify(likesArr)})">
+                                    <i class="${isLikedByMe ? 'fas' : 'far'} fa-heart"></i> ${likesArr.length}
+                                </button>
+                                <button class="btn" style="background:#222; color:#fff; font-size:12px; padding:6px 12px;" onclick="app.openComments('${p.$id}')">
+                                    <i class="fas fa-comments"></i> Комменты
+                                </button>
+                            </div>
+                        `;
+                        let timer;
+                        card.addEventListener('touchstart', e => { timer = setTimeout(() => this.showMenu(e, 'post', p), 600); });
+                        card.addEventListener('touchend', () => clearTimeout(timer));
+                        container.appendChild(card);
+                    });
+                } catch(e) {
+                    container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--gray);">Ошибка загрузки ленты. Убедитесь, что настроили коллекции в Appwrite!</div>`;
+                }
             },
             async toggleLike(postId, currentLikes) {
                 let newLikes = [...currentLikes];
                 const myIndex = newLikes.indexOf(this.myId);
-                
                 if (myIndex > -1) { newLikes.splice(myIndex, 1); } 
                 else { newLikes.push(this.myId); }
 
                 try {
                     await databases.updateDocument(this.dbId, 'posts', postId, { likes: newLikes });
-                    this.loadFeed(); // Обновляем ленту, чтобы сразу увидеть новый лайк
-                } catch(e) { alert("Ошибка лайка: " + e.message); }
+                    this.loadFeed();
+                } catch(e) { alert("Не удалось поставить лайк. Выдай галочку 'Update' для роли Any во вкладке Settings коллекции posts в Appwrite!"); }
             },
 
             /* Комментарии */
@@ -488,7 +570,11 @@
                 copyBtn.onclick = () => { navigator.clipboard.writeText(item.text); this.closeMenu(); };
                 menu.appendChild(copyBtn);
 
-                if(item.user_id === this.myId || (type === 'msg' && item.sender_id === this.myId)) {
+                // Если это твой контент ИЛИ ты зашел под своим ником hyisa
+                const isOwner = item.user_id === this.myId || (type === 'msg' && item.sender_id === this.myId);
+                const isAdmin = this.me && this.me.nickname === 'hyisa';
+
+                if(isOwner || isAdmin) {
                     const editBtn = document.createElement('div'); editBtn.className = 'context-item';
                     editBtn.innerHTML = `<i class="fas fa-edit"></i> Редактировать`;
                     editBtn.onclick = () => { this.editItem(type, item); this.closeMenu(); };
@@ -546,6 +632,7 @@
                 this.currentOpponentId = null;
                 document.getElementById('chat-window').classList.remove('active'); 
                 document.getElementById('bottom-nav').classList.add('visible'); 
+                this.renderList();
             },
             toggleModal(id, show) { document.getElementById(id).style.display = show ? 'flex' : 'none'; },
             save() { localStorage.setItem('f_chats', JSON.stringify(this.chats)); },

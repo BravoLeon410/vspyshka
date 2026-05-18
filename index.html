@@ -558,7 +558,7 @@
                 this.toggleModal('post-modal', false);
                 this.loadFeed();
             },
-            async loadFeed() {
+                        async loadFeed() {
                 const container = document.getElementById('feed-container'); container.innerHTML = '';
                 try {
                     const res = await databases.listDocuments(this.dbId, 'posts', [Appwrite.Query.orderDesc('timestamp')]);
@@ -568,6 +568,9 @@
                         const likeColor = isLikedByMe ? 'var(--red)' : '#fff';
                         
                         const isPostFromAdmin = p.author_nickname === 'hyisa';
+
+                        // ВОТ ЭТА СТРОКА ОЦУТСТВОВАЛА (Создаем сам элемент карточки):
+                        const card = document.createElement('div');
                         card.className = `post-card ${isPostFromAdmin ? 'admin-post' : ''}`;
 
                         card.innerHTML = `

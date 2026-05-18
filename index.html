@@ -130,7 +130,7 @@
         const app = {
             me: null, myId: null, currentOpponentId: null, currentMsgId: null, currentMsgText: null, currentMsgIsMe: false,
             chats: JSON.parse(localStorage.getItem('f_chats') || "{}"),
-            dbId: '6a0adfac0001a7ca5944',
+            dbId: '6a0adb260034b853e4b8', // Твой правильный Database ID
             unsubscribe: null,
 
             toggleAuth(isReg) {
@@ -209,7 +209,7 @@
                     });
 
                 } catch (e) {
-                    alert("Ошибка загрузки профиля. Убедитесь, что запись пользователя существует в базе данных.");
+                    alert("Ошибка загрузки профиля. Проверьте, созданы ли коллекции 'users' и 'messages' внутри этой базы данных.");
                 }
             },
             async editName() { 

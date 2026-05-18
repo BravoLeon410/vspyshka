@@ -385,8 +385,12 @@
                     const m = res.payload;
                     if (m.receiver_id === this.myId) {
                         if (!this.chats[m.sender_id]) {
-                            const uDoc = await databases.getDocument(this.dbId, 'users', m.sender_id);
-                            this.chats[m.sender_id] = { name: uDoc.name, nick: uDoc.nickname, last_text: m.text };
+                            try {
+                                const uDoc = await databases.getDocument(this.dbId, 'users', m.sender_id);
+                                if (uDoc && uDoc.name) {
+                                    this.chats[m.sender_id] = { name: uDoc.name, nick: uDoc.nickname, last_text: m.text };
+                                }
+                            } catch(e) { return; } // Если отправитель удален, игнорируем
                         } else {
                             this.chats[m.sender_id].last_text = m.text;
                         }
@@ -399,11 +403,10 @@
                 });
             },
 
-            // Улучшенный рендер: если localStorage пуст, вытаскиваем связи автоматически из БД
             async renderList() {
                 const l = document.getElementById('chat-list'); l.innerHTML = '';
                 
-                // Автовосстановление списка чатов из базы сообщений
+                // Восстановление цепочек чатов с защитой от "призраков"
                 if (Object.keys(this.chats).length === 0) {
                     l.innerHTML = '<div style="text-align:center;color:var(--gray);margin-top:40px;">Восстановление чатов...</div>';
                     try {
@@ -418,8 +421,13 @@
                             if (oppId === this.myId) continue;
                             try {
                                 const uDoc = await databases.getDocument(this.dbId, 'users', oppId);
-                                this.chats[oppId] = { name: uDoc.name, nick: uDoc.nickname };
-                            } catch(err) {}
+                                if (uDoc && uDoc.name) {
+                                    this.chats[oppId] = { name: uDoc.name, nick: uDoc.nickname };
+                                }
+                            } catch(err) {
+                                // Ошибка означает, что аккаунт удален из коллекции users. Игнорируем ID.
+                                console.log(`Пропущен удаленный пользователь: ${oppId}`);
+                            }
                         }
                         this.save();
                     } catch(e) {}
@@ -429,6 +437,10 @@
                 l.innerHTML = '';
 
                 for(let id in this.chats) {
+                    if (!this.chats[id] || !this.chats[id].name) {
+                        delete this.chats[id]; this.save(); continue;
+                    }
+
                     try {
                         const lastMsgRes = await databases.listDocuments(this.dbId, 'messages', [
                             Appwrite.Query.or([
@@ -447,11 +459,12 @@
 
                     const d = document.createElement('div'); d.className = 'chat-item';
                     const preview = this.chats[id].last_text;
+                    const firstLetter = this.chats[id].name ? this.chats[id].name[0].toUpperCase() : '?';
 
                     d.innerHTML = `<div style="display:flex; align-items:center; gap:15px;">
-                        <div class="avatar">${this.chats[id].name ? this.chats[id].name[0].toUpperCase() : '?'}</div>
+                        <div class="avatar">${firstLetter}</div>
                         <div style="flex:1; min-width:0;" onclick="app.openChat('${id}', '${this.chats[id].name}')">
-                            <div style="font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${this.chats[id].name || 'Без имени'}</div>
+                            <div style="font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${this.chats[id].name}</div>
                             <div class="last-msg-preview">${preview}</div>
                         </div>
                         <i class="fas fa-trash" style="color:var(--gray); padding:10px;" onclick="app.deleteChat('${id}')"></i>
@@ -746,3 +759,4 @@
     </script>
 </body>
 </html>
+    

@@ -115,7 +115,7 @@
             <input type="text" id="reg-name" placeholder="Имя" autocomplete="off" style="margin-top:12px;">
             <input type="text" id="reg-nick" placeholder="Никнейм" autocomplete="off" style="margin-top:12px;">
             <div class="pass-container">
-                <input type="password" id="reg-pass" placeholder="Пароль">
+                <input type="password" id="reg-pass">
                 <i class="fas fa-eye" onclick="app.togglePassVisibility('reg-pass', this)"></i>
             </div>
             <div class="pass-container">
@@ -361,7 +361,6 @@
                     this.me = await databases.getDocument(this.dbId, 'users', this.myId);
                     document.getElementById('auth-screen').style.display = 'none';
                     
-                    // Безопасная инициализация уведомлений (Исправление для iOS/Safari)
                     if (typeof window !== 'undefined' && 'Notification' in window && window.Notification) {
                         if (Notification.permission !== "granted") { 
                             Notification.requestPermission(); 
@@ -397,7 +396,6 @@
                         }
                         this.save(); this.renderList();
 
-                        // Безопасная отправка пуш-уведомлений на iOS
                         if(this.currentOpponentId !== m.sender_id && typeof window !== 'undefined' && 'Notification' in window && window.Notification && Notification.permission === "granted") {
                             new Notification(`ВСПЫШКА: ${this.chats[m.sender_id].name}`, { body: m.text });
                         }
@@ -558,7 +556,7 @@
                 this.toggleModal('post-modal', false);
                 this.loadFeed();
             },
-                        async loadFeed() {
+            async loadFeed() {
                 const container = document.getElementById('feed-container'); container.innerHTML = '';
                 try {
                     const res = await databases.listDocuments(this.dbId, 'posts', [Appwrite.Query.orderDesc('timestamp')]);
@@ -569,7 +567,6 @@
                         
                         const isPostFromAdmin = p.author_nickname === 'hyisa';
 
-                        // ВОТ ЭТА СТРОКА ОЦУТСТВОВАЛА (Создаем сам элемент карточки):
                         const card = document.createElement('div');
                         card.className = `post-card ${isPostFromAdmin ? 'admin-post' : ''}`;
 
@@ -584,7 +581,7 @@
                             </div>
                             <div style="font-size:15px; margin-bottom:12px; white-space:pre-wrap; line-height:1.4;">${p.text}</div>
                             <div style="display:flex; gap:12px;">
-                                <button class="btn" style="background:#1a1a1a; border: 1px solid #252525; color:${likeColor}; font-size:12px; padding:8px 16px; border-radius:20px;" onclick="app.toggleLike('${p.$id}', ${JSON.stringify(likesArr)})">
+                                <button class="btn" style="background:#1a1a1a; border: 1px solid #252525; color:${likeColor}; font-size:12px; padding:8px 16px; border-radius:20px;" onclick="app.toggleLike('${p.$id}')">
                                     <i class="${isLikedByMe ? 'fas' : 'far'} fa-heart"></i> ${likesArr.length}
                                 </button>
                                 <button class="btn" style="background:#1a1a1a; border: 1px solid #252525; color:#fff; font-size:12px; padding:8px 16px; border-radius:20px;" onclick="app.openComments('${p.$id}')">
@@ -601,20 +598,23 @@
                     container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--gray);">Ошибка загрузки ленты.</div>`;
                 }
             },
-            async toggleLike(postId, currentLikes) {
-                let newLikes = [...currentLikes];
-                const myIndex = newLikes.indexOf(this.myId);
-                
-                if (myIndex > -1) { 
-                    newLikes.splice(myIndex, 1); 
-                } else { 
-                    newLikes.push(this.myId); 
-                }
-
+            async toggleLike(postId) {
                 try {
+                    const post = await databases.getDocument(this.dbId, 'posts', postId);
+                    let newLikes = post.likes || [];
+                    const myIndex = newLikes.indexOf(this.myId);
+                    
+                    if (myIndex > -1) { 
+                        newLikes.splice(myIndex, 1); 
+                    } else { 
+                        newLikes.push(this.myId); 
+                    }
+
                     await databases.updateDocument(this.dbId, 'posts', postId, { likes: newLikes });
                     this.loadFeed();
-                } catch(e) { alert("Не удалось изменить лайк."); }
+                } catch(e) { 
+                    alert("Не удалось изменить лайк: " + e.message); 
+                }
             },
 
             /* Комментарии */
@@ -675,7 +675,6 @@
                 const isAdmin = this.me && this.me.nickname === 'hyisa';
                 const isOwner = (item.user_id === this.myId) || (item.sender_id === this.myId);
 
-                // РЕДАКТИРОВАТЬ может ТОЛЬКО создатель (даже админ чужой текст не редактирует)
                 if(isOwner) {
                     const editBtn = document.createElement('div'); editBtn.className = 'context-item';
                     editBtn.innerHTML = `<i class="fas fa-edit"></i> Редактировать`;
@@ -683,7 +682,6 @@
                     menu.appendChild(editBtn);
                 }
 
-                // УДАЛИТЬ свой пост может КТО УГОДНО, а чужой пост/коммент — только АДМИН
                 if(isOwner || isAdmin) {
                     const delBtn = document.createElement('div'); delBtn.className = 'context-item del';
                     delBtn.innerHTML = `<i class="fas fa-trash"></i> Удалить ${type==='msg'?'у всех':''}`;
@@ -708,7 +706,6 @@
                 const isAdmin = this.me && this.me.nickname === 'hyisa';
                 const isOwner = (item.user_id === this.myId) || (item.sender_id === this.myId);
                 
-                // Проверка прав внутри кода для полной безопасности
                 if (!isOwner && !isAdmin) {
                     return alert("У вас нет прав на удаление чужого элемента!");
                 }
@@ -722,12 +719,11 @@
             },
             
             async editItem(type, item) {
-                const newText = prompt("Редактировать текст:", item.text);
+                const newText = prompt("Редактировать text:", item.text);
                 if(!newText || newText.trim() === item.text) return;
 
                 const isOwner = (item.user_id === this.myId) || (item.sender_id === this.myId);
                 
-                // Изменять текст документа может строго только его владелец
                 if (!isOwner) {
                     return alert("Вы можете редактировать только собственные публикации!");
                 }
@@ -788,3 +784,4 @@
     </script>
 </body>
 </html>
+                        

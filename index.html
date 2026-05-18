@@ -361,7 +361,12 @@
                     this.me = await databases.getDocument(this.dbId, 'users', this.myId);
                     document.getElementById('auth-screen').style.display = 'none';
                     
-                    if (Notification.permission !== "granted") { Notification.requestPermission(); }
+                    // Безопасное включение уведомлений без падения на iOS
+                    if ('Notification' in window) {
+                        if (Notification.permission !== "granted") { 
+                            Notification.requestPermission(); 
+                        }
+                    }
                     
                     await databases.updateDocument(this.dbId, 'users', this.myId, { is_online: true, last_seen: Date.now() });
                     
@@ -372,7 +377,7 @@
                     this.tab('chats');
                     this.initRealtimeGlobal();
                 } catch(e) {
-                    alert("Ошибка БД при входе: " + e.message + " (Код: " + e.code + ")");
+                    alert("Ошибка входа. Проверьте коллекции в Appwrite.");
                 }
             },
 
@@ -388,7 +393,7 @@
                         }
                         this.save(); this.renderList();
 
-                        if(this.currentOpponentId !== m.sender_id) {
+                        if(this.currentOpponentId !== m.sender_id && ('Notification' in window) && Notification.permission === "granted") {
                             new Notification(`ВСПЫШКА: ${this.chats[m.sender_id].name}`, { body: m.text });
                         }
                     }
@@ -561,7 +566,6 @@
                 let newLikes = [...currentLikes];
                 const myIndex = newLikes.indexOf(this.myId);
                 
-                // Если лайк уже стоит — убираем его, если нет — добавляем
                 if (myIndex > -1) { 
                     newLikes.splice(myIndex, 1); 
                 } else { 
@@ -605,13 +609,14 @@
             async sendComment() {
                 const i = document.getElementById('comment-input'), t = i.value.trim();
                 if(!t) return;
+                
+                // Передаем только те поля, что прописаны в структуре
                 const res = await databases.createDocument(this.dbId, 'comments', 'unique()', {
                     post_id: this.activePostId, user_id: this.myId, author_name: this.me.name, author_nickname: this.me.nickname, text: t, timestamp: Date.now()
                 });
                 i.value = ''; this.renderComment(res);
             },
             closeComments() { 
-                document.getElementById('comments-window').classList.remove('remove'); 
                 document.getElementById('comments-window').classList.remove('active'); 
                 document.getElementById('bottom-nav').classList.add('visible');
                 this.activePostId = null; 
@@ -699,8 +704,9 @@
                 try {
                     await databases.updateDocument(this.dbId, 'users', this.myId, { is_online: false, last_seen: Date.now() });
                     await account.deleteSession('current');
-                    localStorage.clear(); location.reload();
-                } catch(e){ location.reload(); }
+                } catch(e){}
+                localStorage.clear(); 
+                location.reload();
             }
         };
 
@@ -711,12 +717,6 @@
                 const user = await account.get();
                 app.init(user);
             } catch (e) { 
-                if (e.message && e.message.includes('session is active')) {
-                    try {
-                        await account.deleteSession('current');
-                        localStorage.clear();
-                    } catch(err) {}
-                }
                 document.getElementById('auth-screen').style.display = 'flex'; 
             }
         };

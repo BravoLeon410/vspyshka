@@ -302,7 +302,7 @@
                         await account.createEmailPasswordSession(document.getElementById('log-email').value, document.getElementById('log-pass').value);
                     }
                     location.reload();
-                } catch(err) { alert(err.message); }
+                } catch(err) { alert("Ошибка авторизации БД: " + err.message); }
             },
             async init(user) {
                 this.myId = user.$id;
@@ -322,7 +322,8 @@
                     this.tab('chats');
                     this.initRealtimeGlobal();
                 } catch(e) {
-                    alert("Ошибка входа. Проверьте коллекции в Appwrite.");
+                    // Теперь покажет детальную ошибку вместо глухой заглушки
+                    alert("Ошибка БД при входе: " + e.message + " (Код: " + e.code + ")");
                 }
             },
 
@@ -473,7 +474,7 @@
                         const isLikedByMe = likesArr.includes(this.myId);
                         const likeColor = isLikedByMe ? 'var(--red)' : '#fff';
                         
-                        // Проверка на админа с твоим ником hyisa
+                        // Проверка на админа с ником hyisa
                         const isPostFromAdmin = p.author_nickname === 'hyisa';
                         
                         card.className = `post-card ${isPostFromAdmin ? 'admin-post' : ''}`;
@@ -570,7 +571,7 @@
                 copyBtn.onclick = () => { navigator.clipboard.writeText(item.text); this.closeMenu(); };
                 menu.appendChild(copyBtn);
 
-                // Если это твой контент ИЛИ ты зашел под своим ником hyisa
+                // Проверка прав создателя или админа с ником hyisa
                 const isOwner = item.user_id === this.myId || (type === 'msg' && item.sender_id === this.myId);
                 const isAdmin = this.me && this.me.nickname === 'hyisa';
 
@@ -646,12 +647,11 @@
         };
 
         window.onclick = (e) => { if(!e.target.closest('.msg') && !e.target.closest('.post-card') && !e.target.closest('.comment-card')) app.closeMenu(); };
-                window.onload = async () => {
+        window.onload = async () => {
             try {
                 const user = await account.get();
                 app.init(user);
             } catch (e) { 
-                // Если сессия забагалась, но она активна, мы её принудительно удалим при перезагрузке
                 if (e.message && e.message.includes('session is active')) {
                     try {
                         await account.deleteSession('current');
@@ -661,7 +661,6 @@
                 document.getElementById('auth-screen').style.display = 'flex'; 
             }
         };
-
     </script>
 </body>
 </html>

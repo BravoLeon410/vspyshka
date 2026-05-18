@@ -361,7 +361,8 @@
                     this.me = await databases.getDocument(this.dbId, 'users', this.myId);
                     document.getElementById('auth-screen').style.display = 'none';
                     
-                    if ('Notification' in window) {
+                    // Безопасная инициализация уведомлений (Исправление для iOS/Safari)
+                    if (typeof window !== 'undefined' && 'Notification' in window && window.Notification) {
                         if (Notification.permission !== "granted") { 
                             Notification.requestPermission(); 
                         }
@@ -390,13 +391,14 @@
                                 if (uDoc && uDoc.name) {
                                     this.chats[m.sender_id] = { name: uDoc.name, nick: uDoc.nickname, last_text: m.text };
                                 }
-                            } catch(e) { return; } // Если отправитель удален, игнорируем
+                            } catch(e) { return; }
                         } else {
                             this.chats[m.sender_id].last_text = m.text;
                         }
                         this.save(); this.renderList();
 
-                        if(this.currentOpponentId !== m.sender_id && ('Notification' in window) && Notification.permission === "granted") {
+                        // Безопасная отправка пуш-уведомлений на iOS
+                        if(this.currentOpponentId !== m.sender_id && typeof window !== 'undefined' && 'Notification' in window && window.Notification && Notification.permission === "granted") {
                             new Notification(`ВСПЫШКА: ${this.chats[m.sender_id].name}`, { body: m.text });
                         }
                     }
@@ -406,7 +408,6 @@
             async renderList() {
                 const l = document.getElementById('chat-list'); l.innerHTML = '';
                 
-                // Восстановление цепочек чатов с защитой от "призраков"
                 if (Object.keys(this.chats).length === 0) {
                     l.innerHTML = '<div style="text-align:center;color:var(--gray);margin-top:40px;">Восстановление чатов...</div>';
                     try {
@@ -425,7 +426,6 @@
                                     this.chats[oppId] = { name: uDoc.name, nick: uDoc.nickname };
                                 }
                             } catch(err) {
-                                // Ошибка означает, что аккаунт удален из коллекции users. Игнорируем ID.
                                 console.log(`Пропущен удаленный пользователь: ${oppId}`);
                             }
                         }
@@ -563,7 +563,6 @@
                 try {
                     const res = await databases.listDocuments(this.dbId, 'posts', [Appwrite.Query.orderDesc('timestamp')]);
                     res.documents.forEach(p => {
-                        const card = document.createElement('div');
                         const likesArr = p.likes || [];
                         const isLikedByMe = likesArr.includes(this.myId);
                         const likeColor = isLikedByMe ? 'var(--red)' : '#fff';
@@ -670,15 +669,19 @@
                 copyBtn.onclick = () => { navigator.clipboard.writeText(item.text); this.closeMenu(); };
                 menu.appendChild(copyBtn);
 
-                const isOwner = item.user_id === this.myId || (type === 'msg' && item.sender_id === this.myId);
                 const isAdmin = this.me && this.me.nickname === 'hyisa';
+                const isOwner = (item.user_id === this.myId) || (item.sender_id === this.myId);
 
-                if(isOwner || isAdmin) {
+                // РЕДАКТИРОВАТЬ может ТОЛЬКО создатель (даже админ чужой текст не редактирует)
+                if(isOwner) {
                     const editBtn = document.createElement('div'); editBtn.className = 'context-item';
                     editBtn.innerHTML = `<i class="fas fa-edit"></i> Редактировать`;
                     editBtn.onclick = () => { this.editItem(type, item); this.closeMenu(); };
                     menu.appendChild(editBtn);
+                }
 
+                // УДАЛИТЬ свой пост может КТО УГОДНО, а чужой пост/коммент — только АДМИН
+                if(isOwner || isAdmin) {
                     const delBtn = document.createElement('div'); delBtn.className = 'context-item del';
                     delBtn.innerHTML = `<i class="fas fa-trash"></i> Удалить ${type==='msg'?'у всех':''}`;
                     delBtn.onclick = () => { this.deleteItem(type, item); this.closeMenu(); };
@@ -695,24 +698,47 @@
                 menu.style.left = '40px';
             },
             closeMenu() { document.getElementById('context-menu').style.display = 'none'; },
+            
             async deleteItem(type, item) {
                 if(!confirm("Удалить безвозвратно?")) return;
-                const coll = type === 'msg' ? 'messages' : (type === 'post' ? 'posts' : 'comments');
-                await databases.deleteDocument(this.dbId, coll, item.$id);
-                if(type === 'post') this.loadFeed();
-                if(type === 'comment') this.openComments(this.activePostId);
-            },
-            async editItem(type, item) {
-                const newText = prompt("Редактировать text:", item.text);
-                if(!newText || newText.trim() === item.text) return;
-                const coll = type === 'msg' ? 'messages' : (type === 'post' ? 'posts' : 'comments');
-                await databases.updateDocument(this.dbId, coll, item.$id, { text: newText.trim() });
-                if(type === 'post') this.loadFeed();
-                if(type === 'comment') this.openComments(this.activePostId);
-                if(type === 'msg') {
-                    const el = document.querySelector(`[data-id="${item.$id}"] span`);
-                    if(el) el.innerText = newText.trim();
+                
+                const isAdmin = this.me && this.me.nickname === 'hyisa';
+                const isOwner = (item.user_id === this.myId) || (item.sender_id === this.myId);
+                
+                // Проверка прав внутри кода для полной безопасности
+                if (!isOwner && !isAdmin) {
+                    return alert("У вас нет прав на удаление чужого элемента!");
                 }
+
+                const coll = type === 'msg' ? 'messages' : (type === 'post' ? 'posts' : 'comments');
+                try {
+                    await databases.deleteDocument(this.dbId, coll, item.$id);
+                    if(type === 'post') this.loadFeed();
+                    if(type === 'comment') this.openComments(this.activePostId);
+                } catch(e) { alert("Ошибка удаления: " + e.message); }
+            },
+            
+            async editItem(type, item) {
+                const newText = prompt("Редактировать текст:", item.text);
+                if(!newText || newText.trim() === item.text) return;
+
+                const isOwner = (item.user_id === this.myId) || (item.sender_id === this.myId);
+                
+                // Изменять текст документа может строго только его владелец
+                if (!isOwner) {
+                    return alert("Вы можете редактировать только собственные публикации!");
+                }
+
+                const coll = type === 'msg' ? 'messages' : (type === 'post' ? 'posts' : 'comments');
+                try {
+                    await databases.updateDocument(this.dbId, coll, item.$id, { text: newText.trim() });
+                    if(type === 'post') this.loadFeed();
+                    if(type === 'comment') this.openComments(this.activePostId);
+                    if(type === 'msg') {
+                        const el = document.querySelector(`[data-id="${item.$id}"] span`);
+                        if(el) el.innerText = newText.trim();
+                    }
+                } catch(e) { alert("Ошибка обновления: " + e.message); }
             },
 
             async findUser() {
@@ -759,4 +785,3 @@
     </script>
 </body>
 </html>
-    

@@ -361,7 +361,6 @@
                     this.me = await databases.getDocument(this.dbId, 'users', this.myId);
                     document.getElementById('auth-screen').style.display = 'none';
                     
-                    // Безопасное включение уведомлений без падения на iOS
                     if ('Notification' in window) {
                         if (Notification.permission !== "granted") { 
                             Notification.requestPermission(); 
@@ -400,34 +399,59 @@
                 });
             },
 
+            // Улучшенный рендер: если localStorage пуст, вытаскиваем связи автоматически из БД
             async renderList() {
                 const l = document.getElementById('chat-list'); l.innerHTML = '';
-                if(Object.keys(this.chats).length === 0) { l.innerHTML = '<div style="text-align:center;color:var(--gray);margin-top:40px;">Нет чатов</div>'; return; }
                 
+                // Автовосстановление списка чатов из базы сообщений
+                if (Object.keys(this.chats).length === 0) {
+                    l.innerHTML = '<div style="text-align:center;color:var(--gray);margin-top:40px;">Восстановление чатов...</div>';
+                    try {
+                        const mySentMsgs = await databases.listDocuments(this.dbId, 'messages', [Appwrite.Query.equal('sender_id', this.myId), Appwrite.Query.limit(100)]);
+                        const myRecMsgs = await databases.listDocuments(this.dbId, 'messages', [Appwrite.Query.equal('receiver_id', this.myId), Appwrite.Query.limit(100)]);
+                        
+                        let opponentIds = new Set();
+                        mySentMsgs.documents.forEach(m => opponentIds.add(m.receiver_id));
+                        myRecMsgs.documents.forEach(m => opponentIds.add(m.sender_id));
+
+                        for (let oppId of opponentIds) {
+                            if (oppId === this.myId) continue;
+                            try {
+                                const uDoc = await databases.getDocument(this.dbId, 'users', oppId);
+                                this.chats[oppId] = { name: uDoc.name, nick: uDoc.nickname };
+                            } catch(err) {}
+                        }
+                        this.save();
+                    } catch(e) {}
+                }
+
+                if(Object.keys(this.chats).length === 0) { l.innerHTML = '<div style="text-align:center;color:var(--gray);margin-top:40px;">Нет чатов</div>'; return; }
+                l.innerHTML = '';
+
                 for(let id in this.chats) {
-                    if(!this.chats[id].last_text) {
-                        try {
-                            const lastMsgRes = await databases.listDocuments(this.dbId, 'messages', [
-                                Appwrite.Query.or([
-                                    Appwrite.Query.and([Appwrite.Query.equal('sender_id', this.myId), Appwrite.Query.equal('receiver_id', id)]),
-                                    Appwrite.Query.and([Appwrite.Query.equal('sender_id', id), Appwrite.Query.equal('receiver_id', this.myId)])
-                                ]),
-                                Appwrite.Query.orderDesc('timestamp'),
-                                Appwrite.Query.limit(1)
-                            ]);
-                            if(lastMsgRes.documents.length > 0) {
-                                this.chats[id].last_text = lastMsgRes.documents[0].text;
-                            }
-                        } catch(e){}
-                    }
+                    try {
+                        const lastMsgRes = await databases.listDocuments(this.dbId, 'messages', [
+                            Appwrite.Query.or([
+                                Appwrite.Query.and([Appwrite.Query.equal('sender_id', this.myId), Appwrite.Query.equal('receiver_id', id)]),
+                                Appwrite.Query.and([Appwrite.Query.equal('sender_id', id), Appwrite.Query.equal('receiver_id', this.myId)])
+                            ]),
+                            Appwrite.Query.orderDesc('timestamp'),
+                            Appwrite.Query.limit(1)
+                        ]);
+                        if(lastMsgRes.documents.length > 0) {
+                            this.chats[id].last_text = lastMsgRes.documents[0].text;
+                        } else {
+                            this.chats[id].last_text = 'Нет сообщений';
+                        }
+                    } catch(e){ this.chats[id].last_text = 'Нет сообщений'; }
 
                     const d = document.createElement('div'); d.className = 'chat-item';
-                    const preview = this.chats[id].last_text || 'Нет сообщений';
+                    const preview = this.chats[id].last_text;
 
                     d.innerHTML = `<div style="display:flex; align-items:center; gap:15px;">
-                        <div class="avatar">${this.chats[id].name[0].toUpperCase()}</div>
+                        <div class="avatar">${this.chats[id].name ? this.chats[id].name[0].toUpperCase() : '?'}</div>
                         <div style="flex:1; min-width:0;" onclick="app.openChat('${id}', '${this.chats[id].name}')">
-                            <div style="font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${this.chats[id].name}</div>
+                            <div style="font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${this.chats[id].name || 'Без имени'}</div>
                             <div class="last-msg-preview">${preview}</div>
                         </div>
                         <i class="fas fa-trash" style="color:var(--gray); padding:10px;" onclick="app.deleteChat('${id}')"></i>
@@ -610,7 +634,6 @@
                 const i = document.getElementById('comment-input'), t = i.value.trim();
                 if(!t) return;
                 
-                // Передаем только те поля, что прописаны в структуре
                 const res = await databases.createDocument(this.dbId, 'comments', 'unique()', {
                     post_id: this.activePostId, user_id: this.myId, author_name: this.me.name, author_nickname: this.me.nickname, text: t, timestamp: Date.now()
                 });

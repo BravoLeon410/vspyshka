@@ -9,11 +9,13 @@
     <style>
         :root { --bg: #000; --card: #121212; --accent: #ff8c00; --text: #fff; --gray: #777; --red: #ff4444; --green: #00ffcc; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg); color: var(--text); height: 100dvh; overflow: hidden; }
+        body { background: var(--bg); color: var(--text); height: 100dvh; overflow: hidden; position: relative; }
         .screen { position: fixed; inset: 0; background: var(--bg); display: none; flex-direction: column; z-index: 10; padding-bottom: 85px; }
         .screen.active { display: flex; }
-        header { padding: 15px; background: var(--card); border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+        header { padding: 15px; background: var(--card); border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; height: 60px; }
         .btn { background: var(--accent); color: #000; border: none; padding: 10px 20px; border-radius: 30px; font-weight: bold; cursor: pointer; transition: 0.1s; }
+        .btn:active { opacity: 0.8; }
+        
         #bottom-nav { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 450px; height: 70px; background: var(--card); display: none; border-radius: 35px; border: 1px solid #333; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         #bottom-nav.visible { display: flex; }
         .nav-btn { flex: 1; background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--gray); border-radius: 35px; }
@@ -21,20 +23,22 @@
         .nav-btn i { font-size: 20px; }
         .nav-btn span { font-size: 10px; margin-top: 4px; font-weight: bold; }
         
-        /* Списки и элементы */
         #chat-list, #feed-container, #comments-list { flex: 1; overflow-y: auto; padding-bottom: 20px; }
         .chat-item, .post-card, .comment-card { padding: 15px; border-bottom: 1px solid #151515; background: var(--card); margin: 8px 12px; border-radius: 16px; position: relative; }
         .avatar { width: 42px; height: 42px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #000; font-weight: bold; font-size: 16px; }
         
-        /* Пузыри сообщений */
         #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #050505; }
         .msg { max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 15px; position: relative; display: flex; flex-direction: column; }
         .in { align-self: flex-start; background: #1c1c1e; }
         .out { align-self: flex-end; background: var(--accent); color: #000; }
         .msg-time { font-size: 9px; align-self: flex-end; margin-top: 4px; opacity: 0.6; }
         
-        .input-bar { padding: 10px 15px 30px; background: var(--card); display: flex; gap: 10px; border-top: 1px solid #222; }
-        input, textarea { width: 100%; padding: 12px 20px; border-radius: 25px; background:#1a1a1a; border:1px solid #333; color:#fff; outline: none; }
+        .input-bar { padding: 10px 15px; background: var(--card); display: flex; gap: 10px; border-top: 1px solid #222; position: relative; bottom: env(keyboard-inset-height, 0px); }
+        
+        input[type="text"], input[type="email"], input[type="password"] { 
+            width: 100%; padding: 12px 20px; border-radius: 25px; background:#1a1a1a; border:1px solid #333; color:#fff; outline: none; 
+        }
+        
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; }
         .modal-box { background: var(--card); width: 88%; padding: 25px; border-radius: 25px; text-align: center; }
         
@@ -44,6 +48,8 @@
         .context-item.del { color: var(--red); }
         .online-tag { font-size: 11px; color: var(--green); margin-top: 2px; }
         .offline-tag { font-size: 11px; color: var(--gray); margin-top: 2px; }
+        
+        .profile-field { display: flex; justify-content: space-between; align-items: center; background: #181818; padding: 12px 15px; border-radius: 12px; margin-bottom: 12px; }
     </style>
 </head>
 <body>
@@ -52,17 +58,17 @@
         <div id="login-form" style="width:85%; text-align:center;">
             <h1 style="color:var(--accent); font-size:45px; margin-bottom:30px;">ВСПЫШКА</h1>
             <input type="email" id="log-email" placeholder="Email" autocomplete="off">
-            <input type="password" id="log-pass" placeholder="Пароль">
-            <button class="btn" onclick="app.auth('login')" style="width:100%; margin-top:10px;">ВОЙТИ</button>
+            <input type="password" id="log-pass" placeholder="Пароль" style="margin-top:10px;">
+            <button class="btn" onclick="app.auth('login')" style="width:100%; margin-top:15px;">ВОЙТИ</button>
             <button onclick="app.toggleAuth(true)" style="background:none; border:none; color:var(--gray); margin-top:15px;">Нет аккаунта? Регистрация</button>
         </div>
         <div id="reg-form" style="width:85%; text-align:center; display:none;">
             <h1 style="color:var(--accent); font-size:35px; margin-bottom:20px;">СОЗДАТЬ</h1>
             <input type="email" id="reg-email" placeholder="Email" autocomplete="off">
-            <input type="text" id="reg-name" placeholder="Имя" autocomplete="off">
-            <input type="text" id="reg-nick" placeholder="Никнейм" autocomplete="off">
-            <input type="password" id="reg-pass" placeholder="Пароль">
-            <button class="btn" onclick="app.auth('reg')" style="width:100%; margin-top:10px;">РЕГИСТРАЦИЯ</button>
+            <input type="text" id="reg-name" placeholder="Имя" autocomplete="off" style="margin-top:10px;">
+            <input type="text" id="reg-nick" placeholder="Никнейм" autocomplete="off" style="margin-top:10px;">
+            <input type="password" id="reg-pass" placeholder="Пароль" style="margin-top:10px;">
+            <button class="btn" onclick="app.auth('reg')" style="width:100%; margin-top:15px;">РЕГИСТРАЦИЯ</button>
             <button onclick="app.toggleAuth(false)" style="background:none; border:none; color:var(--gray); margin-top:15px;">Уже есть аккаунт? Войти</button>
         </div>
     </div>
@@ -85,17 +91,32 @@
     <div id="settings-screen" class="screen">
         <header><b style="color:var(--accent); font-size:22px;">ПРОФИЛЬ</b></header>
         <div style="background: var(--card); margin: 15px; padding: 20px; border-radius: 20px; border-left: 5px solid var(--accent);">
+            
             <div style="color: var(--accent); font-size: 11px; text-transform: uppercase; margin-bottom: 5px;">Имя</div>
-            <div id="prof-name" style="font-size: 18px; margin-bottom: 15px;">...</div>
+            <div class="profile-field">
+                <span id="prof-name" style="font-size: 18px; font-weight: bold;">...</span>
+                <i class="fas fa-pen" style="color:var(--accent); cursor:pointer;" onclick="app.editProfileField('name')"></i>
+            </div>
+            
             <div style="color: var(--accent); font-size: 11px; text-transform: uppercase; margin-bottom: 5px;">Никнейм</div>
-            <div id="prof-nick" style="font-size: 16px; margin-bottom: 20px; color:#aaa;">@...</div>
-            <button class="btn" style="background:var(--red); color:white; width:100%;" onclick="app.logout()">ВЫЙТИ ИЗ АККАУНТА</button>
+            <div class="profile-field">
+                <span id="prof-nick" style="font-size: 16px; color:#aaa;">@...</span>
+                <i class="fas fa-pen" style="color:var(--accent); cursor:pointer;" onclick="app.editProfileField('nickname')"></i>
+            </div>
+
+            <div style="color: var(--accent); font-size: 11px; text-transform: uppercase; margin-bottom: 5px;">Электронная почта</div>
+            <div class="profile-field">
+                <span id="prof-email" style="font-size: 15px; color:#aaa;">***********</span>
+                <i id="email-eye" class="fas fa-eye" style="color:var(--accent); cursor:pointer;" onclick="app.toggleEmailVisibility()"></i>
+            </div>
+            
+            <button class="btn" style="background:var(--red); color:white; width:100%; margin-top:20px; border-radius:12px;" onclick="app.logout()">ВЫЙТИ ИЗ АККАУНТА</button>
         </div>
     </div>
 
     <div id="chat-window" class="screen" style="z-index:100; padding-bottom:0;">
         <header>
-            <div onclick="app.closeChat()" style="color:var(--accent); cursor:pointer;"><i class="fas fa-chevron-left"></i></div>
+            <div onclick="app.closeChat()" style="color:var(--accent); cursor:pointer; padding:5px 10px;"><i class="fas fa-chevron-left"></i></div>
             <div style="text-align:center; flex:1; margin-right:40px;">
                 <b id="chat-title">Чат</b>
                 <div id="chat-status" class="offline-tag">офлайн</div>
@@ -103,19 +124,19 @@
         </header>
         <div id="messages"></div>
         <div class="input-bar">
-            <input type="text" id="m-input" placeholder="Сообщение..." autocomplete="off" autocorrect="off" spellcheck="false">
+            <input type="text" id="m-input" placeholder="Сообщение..." autocomplete="new-password" autocorrect="off" spellcheck="false">
             <button class="btn" onclick="app.sendMsg()">ОК</button>
         </div>
     </div>
 
     <div id="comments-window" class="screen" style="z-index:150; padding-bottom:0;">
         <header>
-            <div onclick="app.closeComments()" style="color:var(--accent); cursor:pointer;"><i class="fas fa-chevron-left"></i> Назад</div>
+            <div onclick="app.closeComments()" style="color:var(--accent); cursor:pointer; padding:5px 10px;"><i class="fas fa-chevron-left"></i> Назад</div>
             <b>Комментарии</b><div></div>
         </header>
         <div id="comments-list"></div>
         <div class="input-bar">
-            <input type="text" id="comment-input" placeholder="Написать комментарий..." autocomplete="off" autocorrect="off" spellcheck="false">
+            <input type="text" id="comment-input" placeholder="Написать комментарий..." autocomplete="new-password" autocorrect="off" spellcheck="false">
             <button class="btn" onclick="app.sendComment()">ОК</button>
         </div>
     </div>
@@ -135,7 +156,7 @@
     <div id="search-modal" class="modal">
         <div class="modal-box">
             <input type="text" id="search-input" placeholder="@ник..." autocomplete="off">
-            <button class="btn" onclick="app.findUser()" style="width:100%; margin-top:10px;">НАЙТИ</button>
+            <button class="btn" onclick="app.findUser()" style="width:100%; margin-top:15px;">НАЙТИ</button>
             <button class="btn" onclick="app.toggleModal('search-modal', false)" style="width:100%; margin-top:8px; background:#222; color:#fff;">ОТМЕНА</button>
         </div>
     </div>
@@ -150,7 +171,7 @@
         const databases = new Appwrite.Databases(client);
 
         const app = {
-            me: null, myId: null, currentOpponentId: null, activePostId: null,
+            me: null, myId: null, rawEmail: '', isEmailVisible: false, currentOpponentId: null, activePostId: null,
             chats: JSON.parse(localStorage.getItem('f_chats') || "{}"),
             dbId: '6a0adb260034b853e4b8',
             subs: [],
@@ -179,11 +200,50 @@
                 } else {
                     document.getElementById('settings-screen').classList.add('active');
                     document.getElementById('btn-settings').classList.add('active');
-                    if(this.me) {
-                        document.getElementById('prof-name').innerText = this.me.name;
-                        document.getElementById('prof-nick').innerText = '@' + this.me.nickname;
-                    }
+                    this.updateProfileUI();
                 }
+            },
+            updateProfileUI() {
+                if(this.me) {
+                    document.getElementById('prof-name').innerText = this.me.name;
+                    document.getElementById('prof-nick').innerText = '@' + this.me.nickname;
+                    this.renderEmailUI();
+                }
+            },
+            renderEmailUI() {
+                const el = document.getElementById('prof-email');
+                if (this.isEmailVisible) {
+                    el.innerText = this.rawEmail;
+                    document.getElementById('email-eye').className = "fas fa-eye-slash";
+                } else {
+                    el.innerText = "***********";
+                    document.getElementById('email-eye').className = "fas fa-eye";
+                }
+            },
+            toggleEmailVisibility() {
+                this.isEmailVisible = !this.isEmailVisible;
+                this.renderEmailUI();
+            },
+            async editProfileField(field) {
+                const currentValue = field === 'name' ? this.me.name : this.me.nickname;
+                let newValue = prompt(`Введите новый ${field === 'name' ? 'Имя' : 'Никнейм'}:`, currentValue);
+                if (!newValue || newValue.trim() === "" || newValue.trim() === currentValue) return;
+                
+                newValue = newValue.trim();
+                if (field === 'nickname') {
+                    newValue = newValue.toLowerCase().replace('@','');
+                    const check = await databases.listDocuments(this.dbId, 'users', [Appwrite.Query.equal('nickname', newValue)]);
+                    if(check.total > 0) return alert("Этот никнейм уже занят!");
+                }
+
+                try {
+                    const updateData = {};
+                    updateData[field] = newValue;
+                    await databases.updateDocument(this.dbId, 'users', this.myId, updateData);
+                    this.me[field] = newValue;
+                    this.updateProfileUI();
+                    alert("Данные профиля успешно изменены!");
+                } catch(e) { alert("Ошибка при обновлении: " + e.message); }
             },
             async auth(type) {
                 try {
@@ -208,14 +268,13 @@
             },
             async init(user) {
                 this.myId = user.$id;
+                this.rawEmail = user.email;
                 try {
                     this.me = await databases.getDocument(this.dbId, 'users', this.myId);
                     document.getElementById('auth-screen').style.display = 'none';
                     
-                    // Ставим статус "В сети"
                     await databases.updateDocument(this.dbId, 'users', this.myId, { is_online: true, last_seen: Date.now() });
                     
-                    // Следим за закрытием приложения чтобы переключить в оффлайн
                     window.addEventListener('beforeunload', () => {
                         navigator.sendBeacon(`https://fra.cloud.appwrite.io/v1/databases/${this.dbId}/collections/users/documents/${this.myId}`, JSON.stringify({ is_online: false, last_seen: Date.now() }));
                     });
@@ -223,12 +282,11 @@
                     this.tab('chats');
                     this.initRealtimeGlobal();
                 } catch(e) {
-                    alert("Ошибка входа. Войдите заново или очистите базу юзеров.");
+                    alert("Ошибка входа. Проверьте коллекции в Appwrite.");
                 }
             },
 
             initRealtimeGlobal() {
-                // Подписка на глобальные события сообщений и постов
                 client.subscribe(`databases.${this.dbId}.collections.messages.documents`, async res => {
                     const m = res.payload;
                     if (m.receiver_id === this.myId && !this.chats[m.sender_id]) {
@@ -239,7 +297,6 @@
                 });
             },
 
-            /* Секция чатов */
             renderList() {
                 const l = document.getElementById('chat-list'); l.innerHTML = '';
                 if(Object.keys(this.chats).length === 0) { l.innerHTML = '<div style="text-align:center;color:var(--gray);margin-top:40px;">Нет чатов</div>'; }
@@ -267,12 +324,9 @@
                 document.getElementById('bottom-nav').classList.remove('visible');
                 document.getElementById('chat-title').innerText = name;
                 
-                // Проверяем онлайн статус собеседника
                 this.checkOpponentStatus(id);
-
                 const box = document.getElementById('messages'); box.innerHTML = '';
 
-                // Подписка на сообщения и статус юзера
                 const s1 = client.subscribe(`databases.${this.dbId}.collections.messages.documents`, r => {
                     const m = r.payload;
                     if((m.sender_id===this.myId && m.receiver_id===id) || (m.sender_id===id && m.receiver_id===this.myId)) {
@@ -330,12 +384,12 @@
                 i.value = '';
             },
 
-            /* Секция Ленты */
+            /* Лента */
             async createPost() {
                 const i = document.getElementById('post-input'), t = i.value.trim();
                 if(!t) return;
                 await databases.createDocument(this.dbId, 'posts', 'unique()', {
-                    user_id: this.myId, author_name: this.me.name, author_nickname: this.me.nickname, text: t, timestamp: Date.now()
+                    user_id: this.myId, author_name: this.me.name, author_nickname: this.me.nickname, text: t, timestamp: Date.now(), likes: []
                 });
                 i.value = ''; this.loadFeed();
             },
@@ -344,15 +398,23 @@
                 const res = await databases.listDocuments(this.dbId, 'posts', [Appwrite.Query.orderDesc('timestamp')]);
                 res.documents.forEach(p => {
                     const card = document.createElement('div'); card.className = 'post-card';
-                    const isMyPost = p.user_id === this.myId;
+                    const likesArr = p.likes || [];
+                    const isLikedByMe = likesArr.includes(this.myId);
+                    const likeColor = isLikedByMe ? 'var(--red)' : '#fff';
+
                     card.innerHTML = `
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                             <div><b>${p.author_name}</b> <span style="color:var(--gray); font-size:12px;">@${p.author_nickname}</span></div>
                             <div style="color:var(--gray); font-size:11px;">${this.formatTime(p.timestamp)}</div>
                         </div>
                         <div style="font-size:15px; margin-bottom:12px; white-space:pre-wrap;">${p.text}</div>
-                        <div style="display:flex; gap:15px;">
-                            <button class="btn" style="background:#222; color:#fff; font-size:12px; padding:6px 12px;" onclick="app.openComments('${p.$id}')"><i class="fas fa-comments"></i> Комменты</button>
+                        <div style="display:flex; gap:12px;">
+                            <button class="btn" style="background:#222; color:${likeColor}; font-size:12px; padding:6px 12px;" onclick="app.toggleLike('${p.$id}', ${JSON.stringify(likesArr)})">
+                                <i class="${isLikedByMe ? 'fas' : 'far'} fa-heart"></i> ${likesArr.length}
+                            </button>
+                            <button class="btn" style="background:#222; color:#fff; font-size:12px; padding:6px 12px;" onclick="app.openComments('${p.$id}')">
+                                <i class="fas fa-comments"></i> Комменты
+                            </button>
                         </div>
                     `;
                     let timer;
@@ -361,11 +423,24 @@
                     container.appendChild(card);
                 });
             },
+            async toggleLike(postId, currentLikes) {
+                let newLikes = [...currentLikes];
+                const myIndex = newLikes.indexOf(this.myId);
+                
+                if (myIndex > -1) { newLikes.splice(myIndex, 1); } 
+                else { newLikes.push(this.myId); }
 
-            /* Секция комментариев */
+                try {
+                    await databases.updateDocument(this.dbId, 'posts', postId, { likes: newLikes });
+                    this.loadFeed(); // Обновляем ленту, чтобы сразу увидеть новый лайк
+                } catch(e) { alert("Ошибка лайка: " + e.message); }
+            },
+
+            /* Комментарии */
             async openComments(postId) {
                 this.activePostId = postId;
                 document.getElementById('comments-window').classList.add('active');
+                document.getElementById('bottom-nav').classList.remove('visible');
                 const box = document.getElementById('comments-list'); box.innerHTML = '';
                 
                 const res = await databases.listDocuments(this.dbId, 'comments', [
@@ -396,21 +471,23 @@
                 });
                 i.value = ''; this.renderComment(res);
             },
-            closeComments() { document.getElementById('comments-window').classList.remove('active'); this.activePostId = null; },
+            closeComments() { 
+                document.getElementById('comments-window').classList.remove('active'); 
+                document.getElementById('bottom-nav').classList.add('visible');
+                this.activePostId = null; 
+            },
 
-            /* Контекстное меню (Управление и Редактирование) */
+            /* Контекстное меню */
             showMenu(e, type, item) {
                 e.preventDefault();
                 const menu = document.getElementById('context-menu'); menu.innerHTML = '';
                 const touch = e.touches[0];
                 
-                // Кнопка копирования доступна всем
                 const copyBtn = document.createElement('div'); copyBtn.className = 'context-item';
                 copyBtn.innerHTML = `<i class="fas fa-copy"></i> Копировать`;
                 copyBtn.onclick = () => { navigator.clipboard.writeText(item.text); this.closeMenu(); };
                 menu.appendChild(copyBtn);
 
-                // Редактирование и удаление доступны только создателю элемента
                 if(item.user_id === this.myId || (type === 'msg' && item.sender_id === this.myId)) {
                     const editBtn = document.createElement('div'); editBtn.className = 'context-item';
                     editBtn.innerHTML = `<i class="fas fa-edit"></i> Редактировать`;
@@ -422,7 +499,6 @@
                     delBtn.onclick = () => { this.deleteItem(type, item); this.closeMenu(); };
                     menu.appendChild(delBtn);
                 } else if(type === 'msg') {
-                    // Кнопка удаления сообщения только у себя локально
                     const delLocalBtn = document.createElement('div'); delLocalBtn.className = 'context-item del';
                     delLocalBtn.innerHTML = `<i class="fas fa-eye-slash"></i> Удалить у себя`;
                     delLocalBtn.onclick = () => { document.querySelector(`[data-id="${item.$id}"]`)?.remove(); this.closeMenu(); };
@@ -454,7 +530,6 @@
                 }
             },
 
-            /* Общие методы */
             async findUser() {
                 const t = document.getElementById('search-input').value.trim().toLowerCase().replace('@','');
                 if(!t) return;

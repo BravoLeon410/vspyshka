@@ -119,7 +119,6 @@
     </div>
 
     <script>
-        // Инициализация сервисов Appwrite с твоими данными
         const client = new Appwrite.Client();
         client
             .setEndpoint('https://fra.cloud.appwrite.io/v1') 
@@ -131,7 +130,7 @@
         const app = {
             me: null, myId: null, currentOpponentId: null, currentMsgId: null, currentMsgText: null, currentMsgIsMe: false,
             chats: JSON.parse(localStorage.getItem('f_chats') || "{}"),
-            dbId: 'vspyshka_db',
+            dbId: '6a0adfac0001a7ca5944',
             unsubscribe: null,
 
             toggleAuth(isReg) {
@@ -210,7 +209,7 @@
                     });
 
                 } catch (e) {
-                    alert("Ошибка загрузки профиля. Возможно, вы ещё не создали таблицу 'users' или запись отсутствует.");
+                    alert("Ошибка загрузки профиля. Убедитесь, что запись пользователя существует в базе данных.");
                 }
             },
             async editName() { 

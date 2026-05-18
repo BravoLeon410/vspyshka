@@ -646,12 +646,22 @@
         };
 
         window.onclick = (e) => { if(!e.target.closest('.msg') && !e.target.closest('.post-card') && !e.target.closest('.comment-card')) app.closeMenu(); };
-        window.onload = async () => {
+                window.onload = async () => {
             try {
                 const user = await account.get();
                 app.init(user);
-            } catch (e) { document.getElementById('auth-screen').style.display = 'flex'; }
+            } catch (e) { 
+                // Если сессия забагалась, но она активна, мы её принудительно удалим при перезагрузке
+                if (e.message && e.message.includes('session is active')) {
+                    try {
+                        await account.deleteSession('current');
+                        localStorage.clear();
+                    } catch(err) {}
+                }
+                document.getElementById('auth-screen').style.display = 'flex'; 
+            }
         };
+
     </script>
 </body>
 </html>
